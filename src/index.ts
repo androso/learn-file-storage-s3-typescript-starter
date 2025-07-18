@@ -13,7 +13,7 @@ import {
   handlerVideosRetrieve,
 } from "./api/video-meta";
 import { handlerUploadVideo } from "./api/videos";
-import { handlerUploadThumbnail, handlerGetThumbnail } from "./api/thumbnails";
+import { handlerUploadThumbnail } from "./api/thumbnails";
 import { handlerReset } from "./api/reset";
 import { ensureAssetsDir } from "./api/assets";
 import spa from "./app/index.html";
@@ -48,9 +48,9 @@ Bun.serve({
     "/api/thumbnail_upload/:videoId": {
       POST: withConfig(cfg, handlerUploadThumbnail),
     },
-    "/api/thumbnails/:videoId": {
-      GET: withConfig(cfg, handlerGetThumbnail),
-    },
+    // "/api/thumbnails/:videoId": {
+    //   GET: withConfig(cfg, handlerGetThumbnail),
+    // },
     "/api/video_upload/:videoId": {
       POST: withConfig(cfg, handlerUploadVideo),
     },
@@ -79,15 +79,18 @@ Bun.serve({
 
 console.log(`Server running at http://localhost:${cfg.port}`);
 
-async function serveStaticFile(relativePath: string, basePath: string) {
+const serveStaticFile = async (relativePath: string, basePath: string) => {
   const filePath = `${basePath}/${relativePath}`;
 
   try {
-    const f = Bun.file(filePath);
-    return new Response(await f.bytes(), {
-      headers: { "Content-Type": f.type || "application/octet-stream" },
-    });
-  } catch {
-    return new Response("File not found", { status: 404 });
+    const file = Bun.file(filePath);
+
+    return new Response(await file.bytes(), {
+      headers: {
+        "Content-type": file.type || "application/octet-stream"
+      }
+    })
+  } catch(e) {
+    return new Response("File not found", { status: 404 })
   }
 }
