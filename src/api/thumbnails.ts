@@ -3,8 +3,9 @@ import { respondWithJSON } from "./json";
 import { getVideo, updateVideo } from "../db/videos";
 import type { ApiConfig } from "../config";
 import type { BunRequest } from "bun";
-import { BadRequestError, NotFoundError, UserForbiddenError } from "./errors";
+import { BadRequestError, UserForbiddenError } from "./errors";
 import path from "path";
+import { randomBytes } from "crypto";
 
 export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
 	const { videoId } = req.params as { videoId?: string };
@@ -21,16 +22,21 @@ export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
 	if (img instanceof File == false) {
 		throw new BadRequestError("Image is not an instace of a file");
 	}
+	
 	const MAX_UPLOAD_SIZE = 10 * 1024 * 1024; // 10MB
 
 	if (img.size > MAX_UPLOAD_SIZE) {
 		throw new BadRequestError("File size exceeds 10MB limit");
 	}
-	console.log({img})
+
 	const mediaType = img.type;
 	const fileType = mediaType.split("/")[1];
+	if (mediaType !== "image/jpeg" && mediaType !== "image/png") {
+		throw new BadRequestError("Not a valid format")
+	}
+	const thumbnailId = randomBytes(32).toString("base64")
 	const imageData = await img.arrayBuffer();
-	await Bun.write(path.join(cfg.assetsRoot, `/${videoId}.${fileType}`), imageData)
+	await Bun.write(path.join(cfg.assetsRoot, `/${thumbnailId}.${fileType}`), imageData)
 
 	const videoMetadata = getVideo(cfg.db, videoId);
 	if (videoMetadata?.userID !== userID) {
@@ -39,7 +45,7 @@ export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
 
 	updateVideo(cfg.db, {
 		...videoMetadata,
-		thumbnailURL: `http://localhost:8091/assets/${videoId}.${mediaType}`,
+		thumbnailURL: `http://localhost:8091/assets/${thumbnailId}.${fileType}`,
 	});
 
 	const updatedVideo = getVideo(cfg.db, videoId);
